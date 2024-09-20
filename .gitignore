@@ -4,3 +4,4 @@
 .vscode/launch.json
 .vscode/ipch
 Server/ServerPLantServer/ServerPLantServer/settings.py
+Server/ServerPLantServer/db.slite3
