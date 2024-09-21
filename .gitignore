@@ -3,5 +3,5 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
-Server/ServerPLantServer/ServerPLantServer/settings.py
-Server/ServerPLantServer/db.slite3
+backend/ServerPLantServer/ServerPLantServer/settings.py
+backend/ServerPLantServer/db.slite3
