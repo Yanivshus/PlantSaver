@@ -5,3 +5,4 @@
 .vscode/ipch
 backend/ServerPLantServer/ServerPLantServer/settings.py
 backend/ServerPLantServer/db.slite3
+.env
