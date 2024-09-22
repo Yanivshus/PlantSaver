@@ -38,6 +38,18 @@ const char *html_page =
 "</form>"
 "</body>"
 "</html>";
+void url_decode(char *src, char *dst, int dst_len) {
+    while (*src) 
+    {
+        *dst  = *src;
+        if (*src == '?') {
+            *dst = '\0';  // Terminate the string when '?' is encountered
+            return;
+        }
+        src++;
+        dst++;
+    }
+}
 
 // chooses the smallest value.
 int Min(int t1, int t2){
@@ -48,8 +60,10 @@ int Min(int t1, int t2){
 }
 
 static esp_err_t connect_post_handler(httpd_req_t *req) {
-    char content[100];
+    char content[256];
+    ESP_LOGI(TAG, "Receiving data from socket...");
     size_t recv_size = Min(req->content_len, sizeof(content)); // choose the miniamal number, so i will get the most accurate nuffer size.
+    ESP_LOGI(TAG, "Received data: %d bytes", recv_size);
     int ret = httpd_req_recv(req, content, recv_size); // recv post request -> like recv in a socket.
     if (ret <= 0) {  // Error in receiving
         if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
@@ -61,8 +75,12 @@ static esp_err_t connect_post_handler(httpd_req_t *req) {
     // Extract SSID and password from form
     char ssid[32] = {0};
     char password[64] = {0};
-    sscanf(content, "ssid=%[^&]&password=%s", ssid, password); // extract from post parameters the ssid and password.
+    char decoded_conetent[100];
+    url_decode(content, decoded_conetent, sizeof(decoded_conetent));
+    sscanf(decoded_conetent, "ssid=%[^&]&password=%s", ssid, password); // extract from post parameters the ssid and password.
 
+    ESP_LOGI(TAG, "Received content: %s", content);
+    ESP_LOGI(TAG, "Received decoded content: %s", decoded_conetent);
     ESP_LOGI(TAG, "Received SSID: %s, Password: %s\n", ssid, password);
 
     // Respond with success message
@@ -73,7 +91,7 @@ static esp_err_t connect_post_handler(httpd_req_t *req) {
     wifi_config_t wifi_config = {};
     strcpy((char *)wifi_config.sta.ssid, ssid);
     strcpy((char *)wifi_config.sta.password, password);
-
+    ESP_LOGI(TAG, "connecting to wifi");
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA)); // regular wifi connection, softAP will close at that point because mode has changed.
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
@@ -106,6 +124,10 @@ static httpd_uri_t root_uri = {
 
 static httpd_handle_t start_webserver(void) {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG(); 
+
+    // Adjust these values to handle larger requests
+    //config.uri_match_fn = httpd_uri_match_wildcard;  // Allow wildcard matching if needed
+    config.stack_size = 8192;   // Increase the stack size if necessary
 
     httpd_handle_t server = NULL;
     //start the http server
@@ -213,6 +235,6 @@ void app_main()
     if(start_webserver() == ESP_OK){
         ESP_LOGI(CONWIFI, "Wi-Fi connected\n");
     }
-
+    ESP_LOGI(CONWIFI, "Wi-Fi connected\n");
     
 }
