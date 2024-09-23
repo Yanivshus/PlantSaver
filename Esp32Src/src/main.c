@@ -21,6 +21,11 @@
 #define ESP_WIFI_CHANNEL   6
 #define MAX_STA_CONN       1
 
+#define WIFI_CONNECTED_BIT BIT0
+#define WIFI_FAIL_BIT      BIT1
+
+static EventGroupHandle_t wifi_event_group;
+
 static const char *TAG = "wifi softAP";
 
 // HTML page to serve
@@ -89,6 +94,7 @@ static esp_err_t connect_post_handler(httpd_req_t *req) {
     // Connect to the specified Wi-Fi network
     //setting up configuration for the wifi network.
     wifi_config_t wifi_config = {};
+    
     strcpy((char *)wifi_config.sta.ssid, ssid);
     strcpy((char *)wifi_config.sta.password, password);
     ESP_LOGI(TAG, "connecting to wifi");
@@ -96,9 +102,34 @@ static esp_err_t connect_post_handler(httpd_req_t *req) {
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_ERROR_CHECK(esp_wifi_connect());
-
+    
+    ESP_LOGI(TAG, "Connected to Wi-Fi");
     return ESP_OK;
 }
+
+void wifi_init_sta(const char* ssid, const char* password)
+{
+    // Create the default Wi-Fi station (client)
+    esp_netif_create_default_wifi_sta();
+
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, NULL));
+
+    const char* CONNECTION = "wifi connection proc";
+    wifi_config_t wifi_config = {};
+    
+    strcpy((char *)wifi_config.sta.ssid, ssid);
+    strcpy((char *)wifi_config.sta.password, password);
+    ESP_LOGI(CONNECTION, "connecting to wifi");
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA)); // regular wifi connection, softAP will close at that point because mode has changed.
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+    ESP_ERROR_CHECK(esp_wifi_connect());
+    
+    ESP_LOGI(CONNECTION, "Connected to Wi-Fi");
+
+}
+
+
 
 // function will send the html page to client --> load the website fo the webserver.
 static esp_err_t root_get_handler(httpd_req_t *req) {
@@ -152,6 +183,12 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
     {
         wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data; // extract event from event_data
         ESP_LOGI(TAG, "station "MACSTR" leave, AID=%d, reason=%d\n", MAC2STR(event->mac), event->aid, event->reason);// print disconnection details.
+    }
+    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)// event handler for after wifi connectiob (sta) 
+    {
+        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+        ESP_LOGI(TAG, "Got IP: %s", ip4addr_ntoa(&event->ip_info.ip));
+        xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT); // Set bit on successful connection
     }
 }
 
@@ -222,6 +259,7 @@ void app_main()
 {
     //Initialize NVS for memory.
     esp_err_t ret = nvs_flash_init();
+    
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
       ESP_ERROR_CHECK(nvs_flash_erase());
       ret = nvs_flash_init();
@@ -232,8 +270,12 @@ void app_main()
     wifi_softAP();
     static const char* CONWIFI = "New Wifi net";
     // start
-    if(start_webserver() == ESP_OK){
-        ESP_LOGI(CONWIFI, "Wi-Fi connected\n");
+    
+    start_webserver();
+
+    // Wait for connection events in a loop
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(1000)); // Delay to avoid busy-waiting
     }
     ESP_LOGI(CONWIFI, "Wi-Fi connected\n");
     
