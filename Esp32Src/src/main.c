@@ -21,12 +21,17 @@
 #define ESP_WIFI_CHANNEL   6
 #define MAX_STA_CONN       1
 
-#define WIFI_CONNECTED_BIT BIT0
-#define WIFI_FAIL_BIT      BIT1
-
-static EventGroupHandle_t wifi_event_group;
-
 static const char *TAG = "wifi softAP";
+
+char ssid[32] = {0};
+char password[64] = {0};
+int retry_count = 0;
+
+void wifi_init_sta(char* ssid, char* password);
+void url_decode(char *src, char *dst, int dst_len);
+void wifi_connect_task(void *pvParameter);
+void wifi_softAP();
+bool checkSign(char* s);
 
 // HTML page to serve
 const char *html_page = 
@@ -43,6 +48,8 @@ const char *html_page =
 "</form>"
 "</body>"
 "</html>";
+
+// used to remove the unwanted bytes from the form for wifi
 void url_decode(char *src, char *dst, int dst_len) {
     while (*src) 
     {
@@ -56,12 +63,55 @@ void url_decode(char *src, char *dst, int dst_len) {
     }
 }
 
+
+//check if there is a ? mark in string
+bool checkSign(char* s){
+    while(*s)
+    {
+        if(*s == '?'){
+            return true;
+        }
+        s++;
+    }
+    return false;
+}
+
 // chooses the smallest value.
 int Min(int t1, int t2){
     if(t1 < t2){
         return t1;
     }
     return t2;
+}
+
+
+static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
+{
+    //deal with new client connection event.
+    if (event_id == WIFI_EVENT_AP_STACONNECTED) 
+    {
+        wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data; // extract event from event_data
+        ESP_LOGI(TAG, "station "MACSTR" join, AID=%d\n", MAC2STR(event->mac), event->aid); // print connection details.
+    } 
+    //deal with existing client disconnection event.
+    else if (event_id == WIFI_EVENT_AP_STADISCONNECTED) 
+    {
+        wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data; // extract event from event_data
+        ESP_LOGI(TAG, "station "MACSTR" leave, AID=%d, reason=%d\n", MAC2STR(event->mac), event->aid, event->reason);// print disconnection details.
+    }
+    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)// event handler for after wifi connectiob (sta) 
+    {
+        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+        ESP_LOGI(TAG, "Got IP: %s", ip4addr_ntoa(&event->ip_info.ip));
+    }
+    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_LOST_IP) // if wifi connection lost we will try connecting again.
+    {
+        // if tried connecting wifi and couldnt connect then bad creadentials.
+        if(retry_count < 5){
+            wifi_init_sta(ssid, password);
+            retry_count++;
+        }
+    }
 }
 
 static esp_err_t connect_post_handler(httpd_req_t *req) {
@@ -78,41 +128,35 @@ static esp_err_t connect_post_handler(httpd_req_t *req) {
     }
 
     // Extract SSID and password from form
-    char ssid[32] = {0};
-    char password[64] = {0};
     char decoded_conetent[100];
-    url_decode(content, decoded_conetent, sizeof(decoded_conetent));
-    sscanf(decoded_conetent, "ssid=%[^&]&password=%s", ssid, password); // extract from post parameters the ssid and password.
+
+    // if there is ? in the msg that means bad bytes were added becauseof env
+    if(checkSign(content) == true)
+    {
+        url_decode(content, decoded_conetent, sizeof(decoded_conetent));// remove everything after the ?.
+        sscanf(decoded_conetent, "ssid=%[^&]&password=%s", ssid, password); // extract from post parameters the ssid and password.
+    }
+    else
+    {
+        sscanf(content, "ssid=%[^&]&password=%s", ssid, password); // extract from post parameters the ssid and password.
+    }
 
     ESP_LOGI(TAG, "Received content: %s", content);
-    ESP_LOGI(TAG, "Received decoded content: %s", decoded_conetent);
     ESP_LOGI(TAG, "Received SSID: %s, Password: %s\n", ssid, password);
 
     // Respond with success message
     httpd_resp_send(req, "Wi-Fi credentials received. Connecting...\n", HTTPD_RESP_USE_STRLEN);
-
-    // Connect to the specified Wi-Fi network
-    //setting up configuration for the wifi network.
-    wifi_config_t wifi_config = {};
-    
-    strcpy((char *)wifi_config.sta.ssid, ssid);
-    strcpy((char *)wifi_config.sta.password, password);
-    ESP_LOGI(TAG, "connecting to wifi");
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA)); // regular wifi connection, softAP will close at that point because mode has changed.
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
-    ESP_ERROR_CHECK(esp_wifi_connect());
-    
-    ESP_LOGI(TAG, "Connected to Wi-Fi");
+    wifi_init_sta(ssid, password); // connect to sta wifi accsess point.
     return ESP_OK;
 }
 
-void wifi_init_sta(const char* ssid, const char* password)
+
+void wifi_init_sta(char* ssid, char* password)
 {
     // Create the default Wi-Fi station (client)
     esp_netif_create_default_wifi_sta();
 
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, NULL));
+
 
     const char* CONNECTION = "wifi connection proc";
     wifi_config_t wifi_config = {};
@@ -170,27 +214,6 @@ static httpd_handle_t start_webserver(void) {
 }
 
 
-static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
-{
-    //deal with new client connection event.
-    if (event_id == WIFI_EVENT_AP_STACONNECTED) 
-    {
-        wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data; // extract event from event_data
-        ESP_LOGI(TAG, "station "MACSTR" join, AID=%d\n", MAC2STR(event->mac), event->aid); // print connection details.
-    } 
-    //deal with existing client disconnection event.
-    else if (event_id == WIFI_EVENT_AP_STADISCONNECTED) 
-    {
-        wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data; // extract event from event_data
-        ESP_LOGI(TAG, "station "MACSTR" leave, AID=%d, reason=%d\n", MAC2STR(event->mac), event->aid, event->reason);// print disconnection details.
-    }
-    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)// event handler for after wifi connectiob (sta) 
-    {
-        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-        ESP_LOGI(TAG, "Got IP: %s", ip4addr_ntoa(&event->ip_info.ip));
-        xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT); // Set bit on successful connection
-    }
-}
 
 void wifi_softAP()
 {
@@ -215,6 +238,11 @@ void wifi_softAP()
                                                         ESP_EVENT_ANY_ID,
                                                         &wifi_event_handler,
                                                         NULL,NULL));
+
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_LOST_IP, &wifi_event_handler, NULL, NULL));
+
+
     ESP_LOGI(TAG, "Event handler registered\n");
 
 
