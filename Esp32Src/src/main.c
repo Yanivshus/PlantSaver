@@ -102,7 +102,7 @@ static esp_err_t http_post_event_handler(esp_http_client_event_handle_t evn)
 static void post_data_to_backend()
 {
     esp_http_client_config_t config_post = {
-        .url = "http://10.100.102.14:8080/api/entry/",
+        .url = "http://10.100.102.14:8080/api/entry/", // for now, will be replaced in production -> now just for testing.
         .method = HTTP_METHOD_POST,
         .cert_pem = NULL,
         .event_handler = http_post_event_handler, 
