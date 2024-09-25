@@ -15,6 +15,7 @@
 
 #include "lwip/sockets.h"
 #include "esp_http_server.h"
+#include "esp_http_client.h"
 
 #define ESP_WIFI_SSID      "yanivnet"
 #define ESP_WIFI_PASS      "Yaniv123shus."
@@ -27,11 +28,17 @@ char ssid[32] = {0};
 char password[64] = {0};
 int retry_count = 0;
 
-void wifi_init_sta(char* ssid, char* password);
 void url_decode(char *src, char *dst, int dst_len);
-void wifi_connect_task(void *pvParameter);
-void wifi_softAP();
 bool checkSign(char* s);
+int Min(int t1, int t2);
+static esp_err_t http_post_event_handler(esp_http_client_event_handle_t evn);
+static void post_data_to_backend();
+static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
+static esp_err_t connect_post_handler(httpd_req_t *req);
+void wifi_init_sta(char* ssid, char* password);
+static esp_err_t root_get_handler(httpd_req_t *req);
+static httpd_handle_t start_webserver(void);
+void wifi_softAP();
 
 // HTML page to serve
 const char *html_page = 
@@ -84,6 +91,36 @@ int Min(int t1, int t2){
     return t2;
 }
 
+static esp_err_t http_post_event_handler(esp_http_client_event_handle_t evn)
+{
+    if(evn->event_id == HTTP_EVENT_ON_DATA){
+        printf("HTTP_EVENT_ON_DATA: %.*s\n", evn->data_len, (char*)evn->data);
+    }
+    return ESP_OK;
+}
+
+static void post_data_to_backend()
+{
+    esp_http_client_config_t config_post = {
+        .url = "http://10.100.102.14:8080/api/entry/",
+        .method = HTTP_METHOD_POST,
+        .cert_pem = NULL,
+        .event_handler = http_post_event_handler, 
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&config_post);
+
+    //demy data
+    char* post_data = "{\"device_name\": \"esp32-1\", \"temp\": 12, \"humidity\": 333,\"hasWater\": true, \"date\": \"1111-11-11T11:11:00Z\"}";
+
+    esp_http_client_set_post_field(client, post_data, strlen(post_data));
+    esp_http_client_set_header(client, "Content-Type", "application/json");
+
+    esp_http_client_perform(client);
+    esp_http_client_cleanup(client);
+
+}
+
 
 static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
@@ -103,6 +140,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
     {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         ESP_LOGI(TAG, "Got IP: %s", ip4addr_ntoa(&event->ip_info.ip));
+        post_data_to_backend();
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_LOST_IP) // if wifi connection lost we will try connecting again.
     {
@@ -155,8 +193,6 @@ void wifi_init_sta(char* ssid, char* password)
 {
     // Create the default Wi-Fi station (client)
     esp_netif_create_default_wifi_sta();
-
-
 
     const char* CONNECTION = "wifi connection proc";
     wifi_config_t wifi_config = {};
