@@ -3,6 +3,7 @@
 
 char ssid[32] = {0};
 char password[64] = {0};
+char deviceName[64] = {0};
 int retry_count = 0;
 
 static const char *TAG = "wifi softAP";
@@ -12,16 +13,19 @@ const char *html_page =
 "<!DOCTYPE html>"
 "<html>"
 "<body>"
-"<h2>Wi-Fi Provisioning</h2>"
-"<form action=\"/connect\" method=\"post\">"
-"  <label for=\"ssid\">Wi-Fi SSID:</label><br>"
-"  <input type=\"text\" id=\"ssid\" name=\"ssid\"><br>"
-"  <label for=\"password\">Password:</label><br>"
-"  <input type=\"text\" id=\"password\" name=\"password\"><br><br>"
-"  <input type=\"submit\" value=\"Connect\">"
-"</form>"
+  "<h2>Wi-Fi Provisioning</h2>"
+  "<form action=\"/connect\" method=\"\post\">"
+    "<label for=\"ssid\">Wi-Fi SSID:</label><br>"
+    "<input type=\"text\" id=\"ssid\" name=\"ssid\"><br>"
+    "<label for=\"password\">Password:</label><br>"
+    "<input type=\"text\" id=\"password\" name=\"password\"><br><br>"
+    "<label for=\"deviceName\">Device name:</label><br>"
+    "<input type=\"text\" id=\"deviceName\" name=\"deviceName\"><br><br>"
+    "<input type=\"submit\" value=\"Connect\">"
+  "</form>"
 "</body>"
 "</html>";
+
 
 // used to remove the unwanted bytes from the form for wifi
 void url_decode(char *src, char *dst, int dst_len) {
@@ -166,15 +170,15 @@ static esp_err_t connect_post_handler(httpd_req_t *req) {
     if(checkSign(content) == true)
     {
         url_decode(content, decoded_conetent, sizeof(decoded_conetent));// remove everything after the ?.
-        sscanf(decoded_conetent, "ssid=%[^&]&password=%s", ssid, password); // extract from post parameters the ssid and password.
+        sscanf(decoded_conetent, "ssid=%[^&]&password=%[^&]&deviceName=%s", ssid, password,deviceName); // extract from post parameters the ssid and password.
     }
     else
     {
-        sscanf(content, "ssid=%[^&]&password=%s", ssid, password); // extract from post parameters the ssid and password.
+        sscanf(content, "ssid=%[^&]&password=%[^&]&deviceName=%s", ssid, password,deviceName); // extract from post parameters the ssid and password.
     }
 
     ESP_LOGI(TAG, "Received content: %s", content);
-    ESP_LOGI(TAG, "Received SSID: %s, Password: %s\n", ssid, password);
+    ESP_LOGI(TAG, "Received SSID: %s, Password: %s, Device name: %s\n", ssid, password, deviceName);
 
     // Respond with success message
     httpd_resp_send(req, "Wi-Fi credentials received. Connecting...\n", HTTPD_RESP_USE_STRLEN);
