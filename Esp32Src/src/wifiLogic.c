@@ -1,4 +1,5 @@
 #include "wifiLogic.h"
+#include "dht11.h"
 
 char ssid[32] = {0};
 char password[64] = {0};
@@ -76,14 +77,41 @@ static void post_data_to_backend()
 
     esp_http_client_handle_t client = esp_http_client_init(&config_post);
 
-    //demy data
-    char* post_data = "{\"device_name\": \"esp32-1\", \"temp\": 12, \"humidity\": 333,\"hasWater\": true, \"date\": \"1111-11-11T11:11:00Z\"}";
+    // later i will also get the device name from the softAp
+    char data[512] = "{\"device_name\": \"esp32\", \"temp\": ";
 
-    esp_http_client_set_post_field(client, post_data, strlen(post_data));
+    DHT11_init(GPIO_NUM_4);
+    int humVal = DHT11_read().humidity;
+    int humLength = sniprintf(NULL, 0 , "%d", humVal);
+    char* humStr = (char*)malloc(humLength + 1);
+    snprintf(humStr, humLength + 1, "%d", humVal);
+
+    strncat(data, humStr, humLength);
+    strcat(data, ", \"humidity\": ");
+
+
+    int tempVal =  DHT11_read().temperature;
+    int tempLength = sniprintf(NULL, 0 , "%d", humVal);
+    char* tempStr = (char*)malloc(tempLength + 1);
+    snprintf(tempStr, tempLength + 1, "%d", tempVal);
+
+    strncat(data, tempStr, tempLength);
+    strcat(data, " ,\"hasWater\": true, \"date\": \"1111-11-11T11:11:00Z\"}\0");
+
+
+
+    //demy data
+    //char* post_data = "{\"device_name\": \"esp32-1\", \"temp\": 12, \"humidity\": 333,\"hasWater\": true, \"date\": \"1111-11-11T11:11:00Z\"}";
+
+    esp_http_client_set_post_field(client, data, strlen(data));
     esp_http_client_set_header(client, "Content-Type", "application/json");
 
     esp_http_client_perform(client);
     esp_http_client_cleanup(client);
+
+    free(humStr);
+    free(tempStr);
+    
 
 }
 

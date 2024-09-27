@@ -1,6 +1,8 @@
 #pragma once
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
@@ -17,6 +19,8 @@
 #include "lwip/sockets.h"
 #include "esp_http_server.h"
 #include "esp_http_client.h"
+
+#include "dht11.h"
 
 
 #define ESP_WIFI_SSID      "yanivnet"

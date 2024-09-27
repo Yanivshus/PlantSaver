@@ -1,5 +1,8 @@
 #include "wifiLogic.h"
+#include "driver/gpio.h"
+#include "stdio.h"
 
+#include "dht11.h"
 
 
 void app_main()
