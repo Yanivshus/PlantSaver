@@ -156,16 +156,16 @@ static void post_data_to_backend(void *arg)
     
     printf("%s\n", data);
 
-    esp_http_client_set_post_field(client, data, strlen(data));
+    esp_http_client_set_post_field(client, data, strlen(data)); // adding data as field
     esp_http_client_set_header(client, "Content-Type", "application/json");
 
     esp_http_client_perform(client);
     esp_http_client_cleanup(client);
 
-    free(humStr);
+    free(humStr);// freeing alocated memory
     free(tempStr);
     vTaskDelay(1000/ portTICK_PERIOD_MS);
-    vTaskDelete(NULL);
+    vTaskDelete(NULL); // delete task after finish
 
 }
 
