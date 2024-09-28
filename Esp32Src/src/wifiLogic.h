@@ -42,3 +42,4 @@ void wifi_init_sta(char* ssid, char* password);
 static esp_err_t root_get_handler(httpd_req_t *req);
 httpd_handle_t start_webserver(void);
 void wifi_softAP();
+void hourly_task(void *pvParameter);

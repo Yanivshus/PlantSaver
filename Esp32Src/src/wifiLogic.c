@@ -69,6 +69,39 @@ int Min(int t1, int t2){
     return t2;
 }
 
+
+
+static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
+{
+    //deal with new client connection event.
+    if (event_id == WIFI_EVENT_AP_STACONNECTED) 
+    {
+        wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data; // extract event from event_data
+        ESP_LOGI(TAG, "station "MACSTR" join, AID=%d\n", MAC2STR(event->mac), event->aid); // print connection details.
+    } 
+    //deal with existing client disconnection event.
+    else if (event_id == WIFI_EVENT_AP_STADISCONNECTED) 
+    {
+        wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data; // extract event from event_data
+        ESP_LOGI(TAG, "station "MACSTR" leave, AID=%d, reason=%d\n", MAC2STR(event->mac), event->aid, event->reason);// print disconnection details.
+    }
+    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)// event handler for after wifi connectiob (sta) 
+    {
+        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+        ESP_LOGI(TAG, "Got IP: %s", ip4addr_ntoa(&event->ip_info.ip));
+
+        xTaskCreate(&hourly_task, "Hourly task", 8192, NULL, 5, NULL);
+    }
+    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_LOST_IP) // if wifi connection lost we will try connecting again.
+    {
+        // if tried connecting wifi and couldnt connect then bad creadentials.
+        if(retry_count < 5){
+            wifi_init_sta(ssid, password);
+            retry_count++;
+        }
+    }
+}
+
 static esp_err_t http_post_event_handler(esp_http_client_event_handle_t evn)
 {
     if(evn->event_id == HTTP_EVENT_ON_DATA){
@@ -96,6 +129,7 @@ static void post_data_to_backend(void *arg)
 
     DHT11_init(GPIO_NUM_4);
 
+    // read temperture from dht11 and concat it to json
     int tempVal =  DHT11_read().temperature;
     int tempLength = sniprintf(NULL, 0 , "%d", tempVal);
     char* tempStr = (char*)malloc(tempLength + 1);
@@ -104,6 +138,7 @@ static void post_data_to_backend(void *arg)
     strncat(data, tempStr, tempLength);
     strcat(data, ", \"humidity\": ");
 
+    // read humidity from dht11 and concat it to json
     int humVal = DHT11_read().humidity;
     int humLength = sniprintf(NULL, 0 , "%d", humVal);
     char* humStr = (char*)malloc(humLength + 1);
@@ -119,11 +154,7 @@ static void post_data_to_backend(void *arg)
         strcat(data , " ,\"hasWater\": false }\0");
     }
     
-    
     printf("%s\n", data);
-
-    //demy data
-    //char* post_data = "{\"device_name\": \"esp32-1\", \"temp\": 12, \"humidity\": 333,\"hasWater\": true, \"date\": \"1111-11-11T11:11:00Z\"}";
 
     esp_http_client_set_post_field(client, data, strlen(data));
     esp_http_client_set_header(client, "Content-Type", "application/json");
@@ -138,37 +169,17 @@ static void post_data_to_backend(void *arg)
 
 }
 
-
-static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
+void hourly_task(void *pvParameter)
 {
-    //deal with new client connection event.
-    if (event_id == WIFI_EVENT_AP_STACONNECTED) 
-    {
-        wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data; // extract event from event_data
-        ESP_LOGI(TAG, "station "MACSTR" join, AID=%d\n", MAC2STR(event->mac), event->aid); // print connection details.
-    } 
-    //deal with existing client disconnection event.
-    else if (event_id == WIFI_EVENT_AP_STADISCONNECTED) 
-    {
-        wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data; // extract event from event_data
-        ESP_LOGI(TAG, "station "MACSTR" leave, AID=%d, reason=%d\n", MAC2STR(event->mac), event->aid, event->reason);// print disconnection details.
-    }
-    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)// event handler for after wifi connectiob (sta) 
-    {
-        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-        ESP_LOGI(TAG, "Got IP: %s", ip4addr_ntoa(&event->ip_info.ip));
-        xTaskCreate(post_data_to_backend, "post_data_to_backend", 8192, NULL, 5, &post_to_back_handle);
-        
-    }
-    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_LOST_IP) // if wifi connection lost we will try connecting again.
-    {
-        // if tried connecting wifi and couldnt connect then bad creadentials.
-        if(retry_count < 5){
-            wifi_init_sta(ssid, password);
-            retry_count++;
-        }
+    while (1) {
+        // Call the function to send POST request
+        post_data_to_backend(NULL);
+
+        // Wait for an hour before sending the next POST request
+        vTaskDelay(pdMS_TO_TICKS(3600000));
     }
 }
+
 
 static esp_err_t connect_post_handler(httpd_req_t *req) {
     char content[256];
