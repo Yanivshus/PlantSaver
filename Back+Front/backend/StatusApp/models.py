@@ -14,7 +14,7 @@ class Entry(models.Model):
     temp = models.IntegerField(default=0)
     humidity = models.IntegerField(default=0)
     hasWater = models.BooleanField(default=True)
-    date = models.DateTimeField("Entry date")
+    date = models.DateTimeField(auto_now_add=True)
 
     def getTemp(self):
         return self.temp

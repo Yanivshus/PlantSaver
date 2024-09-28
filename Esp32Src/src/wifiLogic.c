@@ -5,6 +5,7 @@ char ssid[32] = {0};
 char password[64] = {0};
 char deviceName[64] = {0};
 int retry_count = 0;
+TaskHandle_t post_to_back_handle = NULL;
 
 static const char *TAG = "wifi softAP";
 
@@ -29,13 +30,16 @@ const char *html_page =
 
 // used to remove the unwanted bytes from the form for wifi
 void url_decode(char *src, char *dst, int dst_len) {
+    unsigned char replacement_char[] = {0xEF, 0xBF, 0xBD};
     while (*src) 
     {
-        *dst  = *src;
-        if (*src == '?') {
+        
+        if (*src == '?' || (int)*src < 32 || (src[0] == replacement_char[0] && src[1] == replacement_char[1] && src[2] == replacement_char[2])) 
+        {
             *dst = '\0';  // Terminate the string when '?' is encountered
             return;
         }
+        *dst  = *src;
         src++;
         dst++;
     }
@@ -43,10 +47,13 @@ void url_decode(char *src, char *dst, int dst_len) {
 
 
 //check if there is a ? mark in string
-bool checkSign(char* s){
+bool checkSign(char* s)
+{
+    unsigned char replacement_char[] = {0xEF, 0xBF, 0xBD};
     while(*s)
     {
-        if(*s == '?'){
+        if (*s == '?' || (int)*s < 32 || (s[0] == replacement_char[0] && s[1] == replacement_char[1] && s[2] == replacement_char[2])) 
+        {
             return true;
         }
         s++;
@@ -70,7 +77,7 @@ static esp_err_t http_post_event_handler(esp_http_client_event_handle_t evn)
     return ESP_OK;
 }
 
-static void post_data_to_backend()
+static void post_data_to_backend(void *arg)
 {
     esp_http_client_config_t config_post = {
         .url = "http://10.100.102.14:8080/api/entry/", // for now, will be replaced in production -> now just for testing.
@@ -82,27 +89,38 @@ static void post_data_to_backend()
     esp_http_client_handle_t client = esp_http_client_init(&config_post);
 
     // later i will also get the device name from the softAp
-    char data[512] = "{\"device_name\": \"esp32\", \"temp\": ";
+    char data[512] = "{\"device_name\": \"";
+
+    strncat(data, deviceName, strlen(deviceName));
+    strcat(data,"\", \"temp\": ");
 
     DHT11_init(GPIO_NUM_4);
+
+    int tempVal =  DHT11_read().temperature;
+    int tempLength = sniprintf(NULL, 0 , "%d", tempVal);
+    char* tempStr = (char*)malloc(tempLength + 1);
+    snprintf(tempStr, tempLength + 1, "%d", tempVal);
+
+    strncat(data, tempStr, tempLength);
+    strcat(data, ", \"humidity\": ");
+
     int humVal = DHT11_read().humidity;
     int humLength = sniprintf(NULL, 0 , "%d", humVal);
     char* humStr = (char*)malloc(humLength + 1);
     snprintf(humStr, humLength + 1, "%d", humVal);
 
     strncat(data, humStr, humLength);
-    strcat(data, ", \"humidity\": ");
 
-
-    int tempVal =  DHT11_read().temperature;
-    int tempLength = sniprintf(NULL, 0 , "%d", humVal);
-    char* tempStr = (char*)malloc(tempLength + 1);
-    snprintf(tempStr, tempLength + 1, "%d", tempVal);
-
-    strncat(data, tempStr, tempLength);
-    strcat(data, " ,\"hasWater\": true, \"date\": \"1111-11-11T11:11:00Z\"}\0");
-
-
+    //check water level
+    gpio_set_direction(GPIO_NUM_5, GPIO_MODE_INPUT);
+    if(gpio_get_level(GPIO_NUM_5) == 1){
+        strcat(data , " ,\"hasWater\": true }\0");
+    }else{
+        strcat(data , " ,\"hasWater\": false }\0");
+    }
+    
+    
+    printf("%s\n", data);
 
     //demy data
     //char* post_data = "{\"device_name\": \"esp32-1\", \"temp\": 12, \"humidity\": 333,\"hasWater\": true, \"date\": \"1111-11-11T11:11:00Z\"}";
@@ -115,7 +133,8 @@ static void post_data_to_backend()
 
     free(humStr);
     free(tempStr);
-    
+    vTaskDelay(1000/ portTICK_PERIOD_MS);
+    vTaskDelete(NULL);
 
 }
 
@@ -138,7 +157,8 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
     {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         ESP_LOGI(TAG, "Got IP: %s", ip4addr_ntoa(&event->ip_info.ip));
-        post_data_to_backend();
+        xTaskCreate(post_data_to_backend, "post_data_to_backend", 8192, NULL, 5, &post_to_back_handle);
+        
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_LOST_IP) // if wifi connection lost we will try connecting again.
     {
