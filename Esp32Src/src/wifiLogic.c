@@ -154,6 +154,7 @@ static void post_data_to_backend(void *arg)
         strcat(data , " ,\"hasWater\": false, \"lightAmount\": ");
     }
 
+    init_lightsensor();
     int lightAmount = getRawLight();
     int lightLength = snprintf(NULL, 0, "%d", lightAmount);
     char* lightAmountStr = (char*)malloc(lightLength + 1);
@@ -174,7 +175,7 @@ static void post_data_to_backend(void *arg)
     free(humStr);// freeing alocated memory
     free(tempStr);
     vTaskDelay(1000/ portTICK_PERIOD_MS);
-    vTaskDelete(NULL); // delete task after finish
+    //vTaskDelete(NULL); // delete task after finish
 
 }
 
@@ -185,7 +186,7 @@ void hourly_task(void *pvParameter)
         post_data_to_backend(NULL);
 
         // Wait for an hour before sending the next POST request
-        vTaskDelay(pdMS_TO_TICKS(3600000));
+        vTaskDelay(10000/portTICK_PERIOD_MS);
     }
 }
 

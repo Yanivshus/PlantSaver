@@ -7,7 +7,7 @@
 void app_main()
 {   
     static const char *TAG = "wifi softAP";
-    init_lightsensor();
+    
     //Initialize NVS for memory.
     esp_err_t ret = nvs_flash_init();
     
