@@ -149,10 +149,19 @@ static void post_data_to_backend(void *arg)
     //check water level
     gpio_set_direction(GPIO_NUM_5, GPIO_MODE_INPUT);
     if(gpio_get_level(GPIO_NUM_5) == 1){
-        strcat(data , " ,\"hasWater\": true }\0");
+        strcat(data , " ,\"hasWater\": true, \"lightAmount\": ");
     }else{
-        strcat(data , " ,\"hasWater\": false }\0");
+        strcat(data , " ,\"hasWater\": false, \"lightAmount\": ");
     }
+
+    int lightAmount = getRawLight();
+    int lightLength = snprintf(NULL, 0, "%d", lightAmount);
+    char* lightAmountStr = (char*)malloc(lightLength + 1);
+    snprintf(lightAmountStr, lightLength + 1, "%d", lightAmount);
+
+    strncat(data, lightAmountStr, lightLength);
+    strcat(data, " }\0");
+
     
     printf("%s\n", data);
 

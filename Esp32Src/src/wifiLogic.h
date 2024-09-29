@@ -22,6 +22,7 @@
 #include "esp_http_client.h"
 
 #include "dht11.h"
+#include "light_sensor.h"
 
 #define ESP_WIFI_SSID      "yanivnet"
 #define ESP_WIFI_PASS      "Yaniv123shus."
