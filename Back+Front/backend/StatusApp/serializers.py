@@ -5,4 +5,4 @@ from .models import Entry
 class EntrySerializer(ModelSerializer):
     class Meta:
         model = Entry
-        fields = ('device_name','temp', 'humidity', 'hasWater', 'date')
+        fields = ('device_name','temp', 'humidity', 'hasWater', 'date', 'lightAmount')
