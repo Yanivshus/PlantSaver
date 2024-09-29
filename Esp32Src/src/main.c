@@ -1,11 +1,13 @@
 #include "wifiLogic.h"
 #include "driver/gpio.h"
 #include "stdio.h"
+#include "light_sensor.h"
 
 
 void app_main()
 {   
     static const char *TAG = "wifi softAP";
+    init_lightsensor();
     //Initialize NVS for memory.
     esp_err_t ret = nvs_flash_init();
     
@@ -27,5 +29,7 @@ void app_main()
         vTaskDelay(pdMS_TO_TICKS(1000)); // Delay to avoid busy-waiting
     }
     ESP_LOGI(CONWIFI, "Wi-Fi connected\n");
+    
+    
     
 }
