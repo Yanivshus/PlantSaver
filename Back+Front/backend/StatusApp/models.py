@@ -2,15 +2,14 @@ from django.db import models
 
 # Create your models here.
 
-class User(models.Model):
-    username = models.CharField(max_length=200)
-    password = models.CharField(max_length=200)
-    device_name = models.CharField(max_length=200)
+class Result(models.Model):
+    score = models.IntegerField(default=0)
+    sentence = models.CharField(default="N/A", max_length=200)
+    date = models.DateTimeField(auto_now_add=True)
 
-    
 
 class Entry(models.Model):
-    device_name = models.CharField(default="N/A",max_length=200)#models.ForeignKey(User, on_delete=models.CASCADE)
+    device_name = models.CharField(default="N/A",max_length=200)
     temp = models.IntegerField(default=0)
     humidity = models.IntegerField(default=0)
     hasWater = models.BooleanField(default=True)
