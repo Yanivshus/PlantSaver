@@ -4,7 +4,7 @@ from django.db import models
 
 class Result(models.Model):
     score = models.IntegerField(default=0)
-    sentence = models.CharField(default="N/A", max_length=200)
+    sentence = models.CharField(default="N/A", max_length=400)
     date = models.DateTimeField(auto_now_add=True)
 
 
