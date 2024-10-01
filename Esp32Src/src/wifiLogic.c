@@ -15,7 +15,7 @@ const char *html_page =
 "<html>"
 "<body>"
   "<h2>Wi-Fi Provisioning</h2>"
-  "<form action=\"/connect\" method=\"\post\">"
+  "<form action=\"/connect\" method=\"post\">"
     "<label for=\"ssid\">Wi-Fi SSID:</label><br>"
     "<input type=\"text\" id=\"ssid\" name=\"ssid\"><br>"
     "<label for=\"password\">Password:</label><br>"
@@ -89,11 +89,14 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
     {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         ESP_LOGI(TAG, "Got IP: %s", ip4addr_ntoa(&event->ip_info.ip));
+        gpio_set_direction(GPIO_NUM_23, GPIO_MODE_OUTPUT);
+        gpio_set_level(GPIO_NUM_23, 1);
 
         xTaskCreate(&hourly_task, "Hourly task", 8192, NULL, 5, NULL);
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_LOST_IP) // if wifi connection lost we will try connecting again.
     {
+        gpio_set_level(GPIO_NUM_23, 0);
         // if tried connecting wifi and couldnt connect then bad creadentials.
         if(retry_count < 5){
             wifi_init_sta(ssid, password);
@@ -174,9 +177,7 @@ static void post_data_to_backend(void *arg)
 
     free(humStr);// freeing alocated memory
     free(tempStr);
-    vTaskDelay(1000/ portTICK_PERIOD_MS);
-    //vTaskDelete(NULL); // delete task after finish
-
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 
 void hourly_task(void *pvParameter)
