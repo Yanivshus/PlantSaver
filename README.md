@@ -2,4 +2,4 @@
 
 ## Circuit:
 
-![Circuit](circuit.png)
+![Circuit](circuit.jpeg)
