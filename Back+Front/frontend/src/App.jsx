@@ -1,33 +1,41 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 
 function App() {
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
   
     useEffect(() =>{
-        async function fetchData(params) 
-        {
-            console.log(import.meta.env.VITE_API_URL)
-            try {
-                const response = await fetch(`${import.meta.env.VITE_API_URL}entry`)
-                if(!response.ok){
-                    throw new Error("Network resp bad")
-                }
-                const result = await response.json();
-                console.log(result)
-                //setData(result)
-            } catch (error) {
-                console.error('Error fetching data:', error)
-            }
-        }
-
-        fetchData();
+        fetch(`${import.meta.env.VITE_API_URL}`)
+        .then((response) => response.json())
+        .then((data) => {
+            setData(data);
+            setLoading(false);
+        })
+        .catch((error) => {
+            setError(error);
+            setLoading(false);
+        })
         
     }, [])
 
-  return (
+    return (
     <>
-        hello world
+        <div>
+            {loading ? (
+                <p>Loading...</p>
+            ) : error ? (
+                <p>Error : {error.message} </p>
+            ) : (
+                <ul>  
+                    <li>{data.sentence}</li>
+                    <li>{data.score}</li>
+                </ul>
+            )}
+        </div>
     </>
-  )
+  );
 }
 
 export default App
