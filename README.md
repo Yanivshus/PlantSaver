@@ -1,4 +1,5 @@
 # PlantSaver
 
-##Circuit:
-![Circuit](./circuit.png)
+## Circuit:
+
+![Circuit](circuit.png)
