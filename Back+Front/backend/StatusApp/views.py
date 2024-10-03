@@ -50,7 +50,10 @@ class ResultViewSet(ModelViewSet):
         waterMsg, waterScr = self.checkWaterLevel(enteries)
         score += waterScr
 
-        msg = tempMsg + " | " + humidityMsg + " | " + waterMsg
+        lightMsg, lightScore = self.checkLightAmount(enteries)
+        score += lightScore
+
+        msg = tempMsg + " | " + humidityMsg + " | " + waterMsg + " | " + lightMsg
         return (score, msg)
 
 
@@ -70,17 +73,17 @@ class ResultViewSet(ModelViewSet):
         # ranges are taken from sources online.
         if 20 <= avgTemp // len(enteries) and avgTemp // len(enteries) <= 30:
             tempMsg = f"Propper environment temperature, current avg: {avgTemp // len(enteries)}"
-            score = 0
+            score += 0
         else:
             tempMsg = f"Not propper environment temperature: should keep between 20 and 30 degrees, current avg: {avgTemp // len(enteries)}"
-            score = -25
+            score += -25
 
         if 60 <= avgHumidity // len(enteries) and avgHumidity // len(enteries) <= 80:
             humidityMsg = f"Propper environment humidity, current avg: {avgHumidity // len(enteries)}"
-            score = 0
+            score += 0
         else:
             humidityMsg = f"Not propper environment humidity: should keep between 60 and 80 precent, current avg: {avgHumidity // len(enteries)}"
-            score = -25
+            score += -25
 
         return (tempMsg, humidityMsg, score)
 
@@ -101,11 +104,20 @@ class ResultViewSet(ModelViewSet):
             return ("You are not using enough water, try to pour more", -25)
         else:
             return ("You are providing enough water", 0)
-
-
         
+    def checkLightAmount(self, enteries):
+        # by precent
+        amount = 0
+
+        for entry in enteries:
+            # not dark
+            if entry.lightAmount > 13:
+                amount += 1
+            
+        precent = ( amount / len(enteries) ) * 100
+
+        # equels to 6-8 hours of direct light exposere
+        if 25 <= precent and precent <= 33.33333333:
+            return (f"You are using the correct light precentage : which is {precent}", 0)
         
-
-    
-
-
+        return (f"You are using the incorrect light precentage : which is {precent}, you should expose the plant to 6-8 hours of direct sunlight per day which will come to 25-33.3 %", -25)
