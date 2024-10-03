@@ -26,6 +26,20 @@ function App() {
             });
     }
 
+    const generateLi = () => {
+        if (data.sentence) {
+            const arr = String(data.sentence).split(" | ");
+            return (
+                <>
+                    {arr.map((item, index) => (
+                        <li key={index}>{item}</li>
+                    ))}
+                </>
+            );
+        }
+        return null; // Return null if there's no sentence
+    }
+
     return (
     <>
         <main>
@@ -41,9 +55,8 @@ function App() {
                     ) : error ? (
                         <p>Error : {error.message} </p>
                     ) : (
-                        <ul>  
-                            <li>{data.sentence}</li>
-                            <li>{data.score}</li>
+                        <ul> 
+                            {generateLi()}
                         </ul>
                     )}
                 </div>
