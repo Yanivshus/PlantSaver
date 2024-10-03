@@ -1,39 +1,54 @@
 import React, { useState, useEffect } from 'react'
+import './App.css'
+import CostumeInput from './components/CostumeInput';
+import { AiOutlineBulb} from 'react-icons/ai'
+import FormButton from './components/CostumeButton';
 
 function App() {
-    const [data, setData] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [deviceName, setDeviceName] = useState(''); // State to hold the input value
+    const [data, setData] = useState({});
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-  
-    useEffect(() =>{
-        fetch(`${import.meta.env.VITE_API_URL}`)
-        .then((response) => response.json())
-        .then((data) => {
-            setData(data);
-            setLoading(false);
-        })
-        .catch((error) => {
-            setError(error);
-            setLoading(false);
-        })
-        
-    }, [])
+    function onSubmitForm(e) {
+        e.preventDefault(); // Prevents the default form submission behavior
+
+        setLoading(true); // Set loading state
+        fetch(`${import.meta.env.VITE_API_URL}?device_name=${deviceName}`) // Include the input value in the API call
+            .then((response) => response.json())
+            .then((data) => {
+                setData(data);
+                setLoading(false);
+            })
+            .catch((error) => {
+                setError(error);
+                setLoading(false);
+            });
+    }
 
     return (
     <>
-        <div>
-            {loading ? (
-                <p>Loading...</p>
-            ) : error ? (
-                <p>Error : {error.message} </p>
-            ) : (
-                <ul>  
-                    <li>{data.sentence}</li>
-                    <li>{data.score}</li>
-                </ul>
-            )}
-        </div>
+        <main>
+            <center>
+                <form onSubmit={onSubmitForm}>
+                    <CostumeInput icon={<AiOutlineBulb />} type={'text'} placeholder={'Enter device name'} value={deviceName}  onChange={(e => setDeviceName(e.target.value))}/>
+                    <FormButton type='submit' btnText={'Click me'} onSubmit={onSubmitForm}/>
+                </form>
+
+                <div>
+                    {loading ? (
+                        <p>Loading...</p>
+                    ) : error ? (
+                        <p>Error : {error.message} </p>
+                    ) : (
+                        <ul>  
+                            <li>{data.sentence}</li>
+                            <li>{data.score}</li>
+                        </ul>
+                    )}
+                </div>
+            </center>
+        </main>
     </>
   );
 }
