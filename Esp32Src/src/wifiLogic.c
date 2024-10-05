@@ -34,7 +34,7 @@ void url_decode(char *src, char *dst, int dst_len) {
     while (*src) 
     {
         
-        if (*src == '?' || (int)*src < 32 || (src[0] == replacement_char[0] && src[1] == replacement_char[1] && src[2] == replacement_char[2])) 
+        if ( (int)*src > 128 || *src == '?' || (int)*src < 32 || (src[0] == replacement_char[0] && src[1] == replacement_char[1] && src[2] == replacement_char[2])) 
         {
             *dst = '\0';  // Terminate the string when '?' is encountered
             return;
@@ -52,7 +52,7 @@ bool checkSign(char* s)
     unsigned char replacement_char[] = {0xEF, 0xBF, 0xBD};
     while(*s)
     {
-        if (*s == '?' || (int)*s < 32 || (s[0] == replacement_char[0] && s[1] == replacement_char[1] && s[2] == replacement_char[2])) 
+        if ((int)*s > 128  ||*s == '?' || (int)*s < 32 || (s[0] == replacement_char[0] && s[1] == replacement_char[1] && s[2] == replacement_char[2])) 
         {
             return true;
         }
@@ -187,7 +187,7 @@ void hourly_task(void *pvParameter)
         post_data_to_backend(NULL);
 
         // Wait for an hour before sending the next POST request
-        vTaskDelay(10000/portTICK_PERIOD_MS);
+        vTaskDelay(pdMS_TO_TICKS(HOUR_DELAY_MS));
     }
 }
 

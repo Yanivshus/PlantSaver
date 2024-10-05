@@ -1,6 +1,7 @@
 {
     "C_Cpp.errorSquiggles": "disabled",
     "files.associations": {
-        "wifilogic.h": "c"
+        "wifilogic.h": "c",
+        "light_sensor.h": "c"
     }
 }

@@ -28,6 +28,7 @@
 #define ESP_WIFI_PASS      "Yaniv123shus."
 #define ESP_WIFI_CHANNEL   6
 #define MAX_STA_CONN       1
+#define HOUR_DELAY_MS 3600000 
 
 
 
