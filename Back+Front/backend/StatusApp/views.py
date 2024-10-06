@@ -91,16 +91,19 @@ class ResultViewSet(ModelViewSet):
     def checkWaterLevel(self, enteries):
         enoughWater = 0
         for entry in enteries:
-            if entry.hasWater:
+            if entry.hasWater != 0:
                 enoughWater += 1
 
         amountEnteries = len(enteries)  
 
         supposedAmount = amountEnteries // 2
-        # if the times there was enough water is in the hit zone of 10 times near the amount of times there wasnt enough water it means that the user applying water correctly.
-        if enoughWater - 10 > supposedAmount :
+        supposedAmountPrecent = 50
+
+        enoughtWaterPrecent = (enoughWater // amountEnteries) * 100
+        
+        if enoughtWaterPrecent - 20 >= supposedAmountPrecent :
             return ("You are using too much water, try lowering it down", -25)
-        elif enoughWater + 10  < supposedAmount:
+        elif enoughtWaterPrecent + 10  < supposedAmountPrecent:
             return ("You are not using enough water, try to pour more", -25)
         else:
             return ("You are providing enough water", 0)
@@ -118,6 +121,6 @@ class ResultViewSet(ModelViewSet):
 
         # equels to 6-8 hours of direct light exposere
         if 25 <= precent and precent <= 33.33333333:
-            return (f"You are using the correct light precentage : which is {precent}", 0)
+            return (f"You are using the correct light precentage : which is {precent}%", 0)
         
-        return (f"You are using the incorrect light precentage : which is {precent}, you should expose the plant to 6-8 hours of direct sunlight per day which will come to 25-33.3 %", -25)
+        return (f"You are using the incorrect light precentage : which is {precent}%, you should expose the plant to 6-8 hours of direct sunlight per day which will come to 25-33.3 %", -25)
