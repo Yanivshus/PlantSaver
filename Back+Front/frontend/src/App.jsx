@@ -12,6 +12,8 @@ function App() {
 
     function onSubmitForm(e) {
         e.preventDefault(); // Prevents the default form submission behavior
+        setError(null);
+        setLoading(false);
 
         setLoading(true); // Set loading state
         if(deviceName !== null && deviceName !== ''){
@@ -22,6 +24,7 @@ function App() {
                     setLoading(false);
                 })
                 .catch((error) => {
+                    
                     setError(error);
                     setLoading(false);
                 });

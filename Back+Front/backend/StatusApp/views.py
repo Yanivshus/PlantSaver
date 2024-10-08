@@ -27,10 +27,15 @@ class ResultViewSet(ModelViewSet):
 
         if entry_type:
             entries = entries.filter(device_name=entry_type) # check if provided device name.
+
+        if not entries.exists():
+            return Response({"error": "No entries found for the specified device name or date range."}, status=404)
+
             
         proc_data = self.process_and_save_results(entries) # if device name provided we will filter by it too.
         
         return Response(proc_data)
+
 
 
 
