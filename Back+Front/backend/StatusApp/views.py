@@ -27,9 +27,9 @@ class ResultViewSet(ModelViewSet):
 
         if entry_type:
             entries = entries.filter(device_name=entry_type) # check if provided device name.
-
+            
         proc_data = self.process_and_save_results(entries) # if device name provided we will filter by it too.
-
+        
         return Response(proc_data)
 
 
